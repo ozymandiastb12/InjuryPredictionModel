@@ -28,17 +28,17 @@ Copy code
 
 | Metric | GLM (Calibrated) | Random Forest (Calibrated) |
 |--------|------------------|----------------------------|
-| Holdout AUC on 2024 | 0.905 | 0.942 |
-| Recommended operating threshold (RF) | 0.88 (≈90% sensitivity) |
-| Average weekly cap flagged as “at risk” | $1.94M per week |
-| Peak weekly exposure | Week 8 — approximately $4.2M |
-| Highest-risk positions | OL, DL, CB |
-| Lowest predictability (AUC) | RB, ST, TE |
+| **Holdout AUC on 2024** | 0.905 | 0.942 |
+| **Recommended operating threshold** | — | 0.88 (≈90% sensitivity) |
+| **Average weekly cap flagged as “at risk”** | — | \$1.94M per week |
+| **Peak weekly exposure** | — | Week 8 — ≈ \$4.2M |
+| **Highest-risk positions (cap at risk)** | OL, DL, CB | OL, DL, CB |
+| **Lowest predictability (AUC)** | RB, ST, TE | RB, ST, TE |
 
-All plots and CSVs referenced in the final report are produced automatically and saved into:
+All plots and CSVs referenced in the final report are generated automatically by the project script and saved to:
 
-visuals/ (PNG figures)
-artifacts/ (CSV tables)
+visuals/ # PNG figures
+artifacts/ # CSV tables
 
 ---
 
