@@ -1,111 +1,163 @@
-# InjuryPredictionModel
-Predicting Weekly Player Availability & Expected Cap Dollars at Risk
+# NFL Player Availability Modeling: Weekly Probability + Cap Risk  
+### Case Study: New York Giants (2023–2024)
 
-New York Giants — 2023/2024 Seasons
+This repository contains a fully reproducible end-to-end workflow for predicting weekly NFL player availability and converting those probabilities into expected salary-cap dollars at risk.  
+The project was developed for Duke MQM DS04, but is structured as if it were being delivered to an NFL analytics department for real operational use.
 
-This repository contains a fully reproducible workflow to:
+---
 
-Train two availability models (GLM baseline + Random Forest) using 2023 data
+## 1. Project Overview
 
-Evaluate on 2024 holdout season with leakage-free engineered features
+**Goal**  
+Predict the probability that each player will play in a given week, and translate that probability into expected weekly cap exposure to support roster decisions, IR planning, and contingency budgeting.
 
-Apply Platt calibration for true probability estimates
+**Motivation**  
+Front offices must make decisions (practice reps, elevations, waivers, emergency signings) under uncertainty. A player who is unlikely to play may represent millions of dollars of weekly cap exposure, and the team benefits from having a quantified risk signal rather than relying on qualitative injury reports.
 
-Convert model outputs into expected weekly cap dollars at risk
+Example:  
+A starter with a $12M cap hit who is only 60% likely to play creates:
 
-Export all figures & tables used in the written report and slide deck
+(1 - 0.60) × ($12M / 18 weeks) ≈ $266,667 expected weekly cap at risk
 
-All outputs are generated automatically and saved to artifacts/ (CSV tables) and visuals/ (plots).
+yaml
+Copy code
 
-🔧 Requirements
+---
 
-R ≥ 4.3 recommended
+## 2. Key Results
 
-Script will auto-install missing CRAN packages on first run
+| Metric | GLM (Calibrated) | Random Forest (Calibrated) |
+|--------|------------------|----------------------------|
+| Holdout AUC on 2024 | 0.905 | 0.942 |
+| Recommended operating threshold (RF) | 0.88 (≈90% sensitivity) |
+| Average weekly cap flagged as “at risk” | $1.94M per week |
+| Peak weekly exposure | Week 8 — approximately $4.2M |
+| Highest-risk positions | OL, DL, CB |
+| Lowest predictability (AUC) | RB, ST, TE |
 
-Only input required: data/availability_model_frame_clean.csv
-(not committed to repo due to size/privacy)
+All plots and CSVs referenced in the final report are produced automatically and saved into:
 
-🚀 How to Run
-Option A — Command line (recommended)
-make all
+visuals/ (PNG figures)
+artifacts/ (CSV tables)
 
-Option B — Direct R call
-Rscript run.R
+---
 
+## 3. How to Reproduce the Full Pipeline
 
-Both will:
+### Step 1 — Clone repository
+```bash
+git clone https://github.com/yourusername/nyg-availability-model.git
+cd nyg-availability-model
+Step 2 — Restore R environment
+r
+Copy code
+install.packages("renv")
+renv::restore()
+This installs the exact package versions used in the original run.
 
-Fit GLM + RF on 2023
+Step 3 — Run the full workflow
+r
+Copy code
+source("scripts/nyg_availability_visual_pack_weekly_cap.R")
+This script will:
 
-Calibrate using Platt scaling
+Train GLM and Random Forest on 2023
 
-Score 2024 holdout
+Evaluate on 2024 (no leakage)
 
-Generate all CSVs + PNG figures automatically
+Apply Platt calibration
 
+Compute weekly cap-risk metrics
 
-📊 Output Summary
-✅ Model Performance (2024 holdout)
-Model	AUC (calibrated)
-GLM	0.905
-RF	0.942
-✅ Key Business Metrics (2024)
+Create all visualizations and CSV outputs
 
-Cap risk is weekly-normalized, not annual (fixes inflated cap issue)
+Optionally generate a PowerPoint deck if officer is installed
 
-“Expected cap dollars at risk” = (1 – prob_play) × weekly_cap_hit
+No manual editing is required. All outputs are generated programmatically.
 
-🔍 Contents of /artifacts (CSV tables)
-File	Description
-cv_rolling_2023_weekly_auc.csv	Weekly AUC from rolling-origin CV
-auc_by_position_2024.csv	RF/GLM AUC by position
-availability_predictions_2024_with_calibration.csv	All 2024 predictions (raw + calibrated)
-cap_at_risk_by_position_2024.csv	Expected weekly cap risk by position
-top15_cap_risk_players_2024.csv	Top 15 highest-risk players (weekly)
-weekly_cap_risk_2024.csv	Total weekly team cap risk (time series)
-threshold_sweep_metrics_2024.csv	Sensitivity, specificity & cap flagged out vs threshold
-📈 Contents of /visuals (PNG figures)
+5. Modeling Details
+Target variable
 
-cv_rolling_auc_2023.png
+ini
+Copy code
+did_play = 1 if snaps_total > 0, else 0
+Feature families (all leakage-controlled)
 
-roc_calibrated_2024.png
+Category	Examples
+Lagged usage	snaps_lag1, snaps_lag2, touches_lag1, tackles_lag1
+Rolling windows	snaps_roll3, touches_roll5, qb_hits_roll3
+Context	rest_days, short_week, home_game, age, bmi
+Weather/surface	roof, temp_f, windy_flag
+Economics (not used for modeling)	cap_hit_weekly = cap_hit / number_of_regular_season_weeks
 
-pr_calibrated_2024.png
+Validation strategy
 
-reliability_glm_2024.png
+Stage	Method
+In-season validation (2023)	Rolling-origin cross-validation (train weeks < w, test week w)
+Final evaluation	Train on all of 2023 → predict all of 2024
+Calibration	Platt scaling fit on 2023 and applied to 2024
 
-reliability_glm_cal_2024.png
+The Random Forest clearly outperforms the GLM on discrimination while maintaining acceptable calibration after scaling.
 
-reliability_rf_2024.png
+6. Cap Risk Calculation
+ini
+Copy code
+expected_cap_risk = (1 − predicted_prob_play) × weekly_cap_hit
+Cap hits are normalized to a weekly value rather than used as annual totals, which allows decisions to be evaluated on the same cadence as roster planning.
 
-reliability_rf_cal_2024.png
+Outputs include:
 
-cap_at_risk_by_position_2024.png
+Cap risk by position
 
-top15_cap_risk_players_2024.png
+Cap risk by player
 
-weekly_cap_risk_2024.png
+Team-level cap exposure over time
 
-threshold_sensitivity_2024.png
+Threshold-based trade-off curves (sensitivity vs cap flagged out)
 
-threshold_specificity_2024.png
+7. Visuals Generated by the Script
+Description	Filename
+Rolling CV AUC (2023)	cv_rolling_auc_2023.png
+ROC curve (2024, calibrated)	roc_calibrated_2024.png
+PR curve (2024, calibrated)	pr_calibrated_2024.png
+Calibration diagnostics (4 total)	reliability_*.png
+Cap risk by position	cap_at_risk_by_position_2024.png
+Top 15 player-weeks by risk	top15_cap_risk_players_2024.png
+Weekly team cap exposure	weekly_cap_risk_2024.png
+Threshold sweeps (3 plots)	threshold_*.png
+AUC by position	auc_by_position_2024_bar.png
 
-threshold_cap_flagged_out_2024.png
+All figures are saved to visuals/ when the script runs.
 
-auc_by_position_2024_bar.png
+8. Scalability to Other Teams
+This project is team-specific in data, not in logic.
+To apply the framework to another NFL roster:
 
-All figures are formatted and ready for report/slides.
+Replace input modeling file with another team’s weekly roster usage + cap table.
 
-🔁 Reproducibility Notes (TA-facing)
+Run the same script without modification.
 
-No target leakage — all features are lagged or pre-game known
+Outputs will update automatically for the new team.
 
-Weekly cap normalization is handled inside script via:
+Nothing in the modeling pipeline is hard-coded to the Giants.
 
-cap_hit_weekly = cap_hit / max(week in 2024)
+9. Future Extensions
+Area	Example Improvement
+Data inputs	Practice participation, GPS load, travel fatigue, illness reports
+Model variants	XGBoost, calibrated GBDT, monotonic RF constraints
+Deployment	Automated weekly job, Slack/Teams alerts, Shiny dashboard
+Scale	Multi-team or leaguewide expected cap-risk database
 
+10. Contact
+For academic replication, see Appendix C of the written report.
+For analytics discussions or applied NFL usage:
 
-Script is fully offline — no API calls, no randomness beyond fixed seeds
-
-Running the repo on a clean machine will reproduce 100% identical outputs
+scss
+Copy code
+crpatten88@gmail.com / cp420@duke.edu
+X / Twitter: @CPatFBAnalytics
+csharp
+Copy code
+This repository is the technical artifact supporting:
+"Predicting Weekly Player Availability and Expected Cap Dollars at Risk"
+Duke MQM, DS04 – Fall 2025
